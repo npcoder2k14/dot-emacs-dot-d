@@ -2,7 +2,7 @@
 ;;; Commentary:
 ;;; Author: Suvrat Apte
 ;;; Created on: 02 November 2015
-;;; Copyright (c) 2021 Suvrat Apte <suvratapte@gmail.com>
+;;; Copyright (c) 2019 Suvrat Apte <suvratapte@gmail.com>
 
 ;; This file is not part of GNU Emacs.
 
@@ -16,7 +16,23 @@
 ;;; Code:
 
 
-;; ────────────────────────────── Set up 'package' ─────────────────────────────
+;; ─────────────────────────────────── Set up 'package' ───────────────────────────────────
+;; (require 'package)
+
+;; ;; Add melpa to package archives.
+;; (add-to-list 'package-archives
+;;              '("melpa" . "http://melpa.milkbox.net/packages/") t)
+
+;; ;; Load and activate emacs packages. Do this first so that the packages are loaded before
+;; ;; you start trying to modify them.  This also sets the load path.
+;; (package-initialize)
+
+;; ;; Install 'use-package' if it is not installed.
+;; (when (not (package-installed-p 'use-package))
+;;   (package-refresh-contents)
+;;   (package-install 'use-package))
+
+
 (require 'package)
 
 ;; Add melpa to package archives.
@@ -33,7 +49,7 @@
   (package-install 'use-package))
 
 
-;; ──────────────────────────── Use better defaults ────────────────────────────
+;; ───────────────────────────────── Use better defaults ────────────────────────────────
 (setq-default
  ;; Don't use the compiled code if its the older package.
  load-prefer-newer t
@@ -45,13 +61,10 @@
  custom-file "~/.emacs.d/custom-file.el"
 
  ;; 72 is too less for the fontsize that I use.
- fill-column 80
+ fill-column 90
 
  ;; Use your name in the frame title. :)
- frame-title-format (format "%s's Emacs" (if (or (equal user-login-name "suvratapte")
-                                                 (equal user-login-name "suvrat.apte"))
-                                             "Suvrat"
-                                           (capitalize user-login-name)))
+ frame-title-format (format "%s's Emacs" (capitalize user-login-name))
 
  ;; Do not create lockfiles.
  create-lockfiles nil
@@ -68,35 +81,37 @@
  auto-save-default nil
 
  ;; Allow commands to be run on minibuffers.
- enable-recursive-minibuffers t
-
- ;; Do not ring bell
- ring-bell-function 'ignore)
-
-;; Show (line,column) in mode-line
-(column-number-mode t)
-
-
-;; Delete regions
-(cua-selection-mode t)
-
-;; Load `custom-file` manually as we have modified the default path.
-(load-file custom-file)
+ enable-recursive-minibuffers t)
 
 ;; Change all yes/no questions to y/n type
 (fset 'yes-or-no-p 'y-or-n-p)
 
 ;; Make the command key behave as 'meta'
 (when (eq system-type 'darwin)
-  (setq mac-command-modifier 'meta)
-  (setq mac-right-command-modifier 'hyper)
-  (setq mac-option-modifier 'super))
+  (setq mac-command-modifier 'meta))
 
 ;; `C-x o' is a 2 step key binding. `M-o' is much easier.
 (global-set-key (kbd "M-o") 'other-window)
 
-;; Unbind `save-buffers-kill-terminal` to avoid accidentally quiting Emacs.
-(global-unset-key (kbd "C-x C-c"))
+;; Revert buffer
+(global-set-key (kbd "C-c r") 'revert-buffer)
+
+;; Switch project
+(global-set-key (kbd "C-x p") 'projectile-switch-project)
+
+;; remove whitespaces
+
+(global-set-key (kbd "C-x w") 'fixup-whitespace)
+
+;; windresize
+(when (not (package-installed-p 'windresize))
+  (package-refresh-contents)
+  (package-install 'windresize))
+
+(global-set-key (kbd "C-x [") 'windresize)
+
+;; selection region color
+(set-face-attribute 'region nil :background "#8b0000")
 
 ;; Delete whitespace just when a file is saved.
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
@@ -105,16 +120,14 @@
 (put 'narrow-to-region 'disabled nil)
 (put 'narrow-to-page 'disabled nil)
 
-(global-set-key (kbd "H-r") 'narrow-to-region)
-(global-set-key (kbd "H-d") 'narrow-to-defun)
-(global-set-key (kbd "H-w") 'widen)
-(global-set-key (kbd "H-c") 'calendar)
+;; Display column number in mode line.
+(column-number-mode t)
 
 ;; Automatically update buffers if file content on the disk has changed.
 (global-auto-revert-mode t)
 
 
-;; ────────────────────── Disable unnecessary UI elements ──────────────────────
+;; ─────────────────────────── Disable unnecessary UI elements ──────────────────────────
 (progn
 
   ;; Do not show tool bar.
@@ -129,10 +142,14 @@
   (global-hl-line-mode t))
 
 
-;; ──────────────────── Better interaction with X clipboard ────────────────────
+;; ───────────────────────── Better interaction with X clipboard ────────────────────────
 (setq-default
  ;; Makes killing/yanking interact with the clipboard.
  x-select-enable-clipboard t
+
+ ;; To understand why this is done, read `X11 Copy & Paste to/from Emacs' section here:
+ ;; https://www.emacswiki.org/emacs/CopyAndPaste.
+ x-select-enable-primary t
 
  ;; Save clipboard strings into kill ring before replacing them. When
  ;; one selects something in another program to paste it into Emacs, but
@@ -148,7 +165,7 @@
  mouse-yank-at-point t)
 
 
-;; ─────────────────── Added functionality (Generic usecases) ──────────────────
+;; ──────────────────────── Added functionality (Generic usecases) ────────────────────────
 (defun toggle-comment-on-line ()
   "Comment or uncomment current line."
   (interactive)
@@ -184,8 +201,8 @@
         (insert comment)
         (when (> comment-length 0) (insert " "))
         (dotimes (_ (if (= (% comment-length 2) 0)
-                      (- space-on-each-side 1)
-                      space-on-each-side))
+                        space-on-each-side
+                      (- space-on-each-side 1)))
           (insert comment-char))))))
 
 (global-set-key (kbd "C-c ;") 'comment-pretty)
@@ -215,12 +232,11 @@
                            (kill-buffer (current-buffer))))))
     (url-retrieve upload-url url-callback)))
 
-;; Start Emacsserver so that emacsclient can be used.
-;; I'm not using the server these days so commenting this out.
-;; (server-start)
+;; Start Emacsserver so that emacsclient can be used
+(server-start)
 
 
-;; ──────────────── Additional packages and their configurations ───────────────
+;; ───────────────────── Additional packages and their configurations ─────────────────────
 (require 'use-package)
 
 ;; Add `:doc' support for use-package so that we can use it like what a doc-strings is for
@@ -242,7 +258,7 @@
     (use-package-process-keywords name-symbol rest state)))
 
 
-;; ────────────────────────────── Generic packages ─────────────────────────────
+;; ─────────────────────────────────── Generic packages ───────────────────────────────────
 (use-package delight
   :ensure t
   :delight)
@@ -301,16 +317,6 @@
   (which-key-mode t)
   :delight)
 
-(use-package smex
-  :doc "Enhance M-x to allow easier execution of commands"
-  :ensure t
-  ;; Using counsel-M-x for now. But smex is still useful for history of M-x.
-  :disabled t
-  :config
-  (setq smex-save-file (concat user-emacs-directory ".smex-items"))
-  (smex-initialize)
-  :delight)
-
 (use-package ivy
   :doc "A generic completion mechanism"
   :ensure t
@@ -325,8 +331,7 @@
         ivy-initial-inputs-alist nil)
 
   :bind (("C-x b" . ivy-switch-buffer)
-         ("C-x B" . ivy-switch-buffer-other-window)
-         ("C-c C-r" . ivy-resume))
+         ("C-x B" . ivy-switch-buffer-other-window))
   :delight)
 
 (use-package ivy-rich
@@ -345,21 +350,17 @@
   :doc "Custom positions for ivy buffers."
   :ensure t
   :config
-
-  (when (member "Hasklig" (font-family-list))
-    (setq ivy-posframe-parameters
-          '((font . "Hasklig"))))
-
-  (setq ivy-posframe-border-width 10)
+  ;;(setq ivy-posframe-parameters
+  ;;      '((font . "Fira Code Retina")))
 
   (setq ivy-posframe-display-functions-alist
         '((complete-symbol . ivy-posframe-display-at-point)
-          (swiper . ivy-display-function-fallback)
-          (swiper-isearch . ivy-display-function-fallback)
-          (counsel-rg . ivy-display-function-fallback)
+          (swiper . nil)
+          (swiper-isearch . nil)
+          (counsel-rg . nil)
           (t . ivy-posframe-display-at-frame-center)))
 
-  (ivy-posframe-mode t)
+  (ivy-posframe-mode 1)
 
   ;; Due to a bug in macOS, changing ivy-posframe-border background color does not
   ;; work. Instead, go to the elisp file and change the background color to black.
@@ -370,14 +371,8 @@
   :doc "A better search"
   :ensure t
   :bind (("C-s" . swiper-isearch)
-         ("H-s" . isearch-forward-regexp))
-  :delight)
-
-(use-package swiper
-  :doc "A better search"
-  :ensure t
-  :bind (("C-s" . swiper-isearch)
-         ("H-s" . isearch-forward-regexp))
+         ("C-M-s" . isearch-forward-regexp)
+         ("C-M-r" . isearch-backward-regexp))
   :delight)
 
 (use-package counsel
@@ -387,8 +382,6 @@
          ("C-x C-f" . counsel-find-file)
          ("C-'" . counsel-imenu)
          ("C-c s" . counsel-rg)
-         ;; Not using this these days.
-         ;; ("M-y" . counsel-yank-pop)
          :map counsel-find-file-map
          ("RET" . ivy-alt-done))
   :delight)
@@ -397,26 +390,29 @@
   :doc "Intended Indentation"
   :ensure t
   :config
-  ;; (add-hook 'before-save-hook 'aggressive-indent-indent-defun)
+  (add-hook 'before-save-hook 'aggressive-indent-indent-defun)
   ;; Have a way to save without indentation.
   ;; (defun save-without-aggresive-indentation ()
   ;;   (interactive)
   ;;   (remove-hook 'before-save-hook 'aggressive-indent-indent-defun)
   ;;   (save-buffer)
   ;;   (add-hook 'before-save-hook 'aggressive-indent-indent-defun))
-  ;; :bind (("C-x s" . save-without-aggresive-indentation))
+  :bind (("C-x s" . save-without-aggresive-indentation))
   :delight)
 
 (use-package git-gutter
-  :disabled t
   :doc "Shows modified lines"
   :ensure t
   :config
   (setq git-gutter:modified-sign "|")
   (setq git-gutter:added-sign "|")
   (setq git-gutter:deleted-sign "|")
+  (set-face-foreground 'git-gutter:modified "grey")
+  (set-face-foreground 'git-gutter:added "green")
+  (set-face-foreground 'git-gutter:deleted "red")
   (global-git-gutter-mode t)
   :delight)
+
 
 (use-package git-timemachine
   :doc "Go through git history in a file"
@@ -469,8 +465,8 @@
 
 (use-package exec-path-from-shell
   :doc "MacOS does not start a shell at login. This makes sure
-        that the env variable of shell and GUI Emacs look the
-        same."
+          that the env variable of shell and GUI Emacs look the
+          same."
   :ensure t
   :if (eq system-type 'darwin)
   :config
@@ -502,13 +498,17 @@
 (use-package darkroom
   :doc "Focused editing."
   :ensure t
+  :disabled
+  :commands (darkroom-mode
+             darkroom-tentative-mode)
   :config
   (setq darkroom-text-scale-increase 1.5)
-  :bind ("C-c d" . darkroom-mode)
+  :bind ("C-c d" darkroom-mode)
   :delight)
 
 (use-package flyspell
   :config
+
   ;; Flyspell should be able to learn a word without the
   ;; `flyspell-correct-word-before-point` pop up.
   ;; Refer:
@@ -528,27 +528,10 @@
   (set-face-attribute 'flyspell-incorrect nil :underline '(:style line :color "#bf616a"))
   (set-face-attribute 'flyspell-duplicate nil :underline '(:style line :color "#bf616a"))
 
-  :bind ("H-l" . flyspell-learn-word-at-point)
-  :delight)
-
-(use-package company-emoji
-  :ensure t
-  :config
-  (add-to-list 'company-backends 'company-emoji)
-  (set-fontset-font t 'symbol (font-spec :family "Apple Color Emoji")
-                    nil 'prepend)
-  :delight)
-
-(use-package markdown-mode
-  :ensure t
-  :mode (("\\.md\\'" . markdown-mode)
-         ("\\.markdown\\'" . markdown-mode))
-  :delight)
+  :bind ("C-c l" . flyspell-learn-word-at-point))
 
 
-;; ──────────────────────────────── Code editing ───────────────────────────────
-
-(global-display-line-numbers-mode)
+;; ───────────────────────────────────── Code editing ─────────────────────────────────────
 
 (use-package company
   :doc "COMplete ANYthing"
@@ -576,6 +559,16 @@
 
   :delight)
 
+(use-package company-emoji
+  :ensure t
+  :config
+  (add-to-list 'company-backends 'company-emoji)
+  (if (version< "27.0" emacs-version)
+      (set-fontset-font
+       "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
+    (set-fontset-font t 'symbol (font-spec :family "Apple Color Emoji")
+                      nil 'prepend)))
+
 (use-package paredit
   :doc "Better handling of paranthesis when writing Lisp"
   :ensure t
@@ -588,8 +581,6 @@
   (add-hook 'lisp-mode-hook #'enable-paredit-mode)
   (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
   (add-hook 'scheme-mode-hook #'enable-paredit-mode)
-  (add-hook 'haskell-mode-hook #'enable-paredit-mode)
-  (add-hook 'haskell-interactive-mode-hook #'enable-paredit-mode)
   :config
   (show-paren-mode t)
   :bind (("M-[" . paredit-wrap-square)
@@ -624,14 +615,8 @@
                'yas-hippie-try-expand)
   :delight)
 
-(use-package expand-region
-  :doc "Better navigation between nested expressions."
-  :ensure t
-  :bind ("C-c =" . er/expand-region)
-  :delight)
-
 
-;; ─────────────────────────── Programming languages ───────────────────────────
+;; ──────────────────────────────── Programming languages ───────────────────────────────
 (use-package clojure-mode
   :doc "A major mode for editing Clojure code"
   :ensure t
@@ -716,8 +701,7 @@
 
   :bind (:map
          cider-mode-map
-         ("H-t" . cider-test-run-test)
-         ("H-n" . cider-test-run-ns-tests)
+         ("C-c d" . cider-debug-defun-at-point)
          :map
          cider-repl-mode-map
          ("C-c M-o" . cider-repl-clear-buffer))
@@ -795,40 +779,8 @@
   (global-eldoc-mode t)
   :delight)
 
-(use-package python
-  :ensure t
-  :custom
-  (python-indent-offset 4)
-  :delight)
-
-(use-package anaconda-mode
-  :ensure t
-  :diminish anaconda-mode
-  :hook python-mode
-  :custom (python-indent-offset 4)
-  :delight)
-
-(use-package company-anaconda
-  :ensure t
-  :after (company anaconda-mode)
-  :config (add-hook 'python-mode-hook
-                    (lambda () (add-to-list 'company-backends 'company-anaconda)))
-  :delight)
-
-(use-package haskell-mode
-  :ensure t
-  :config
-  :bind (("C-c M-o" . haskell-interactive-mode-clear)
-         ("C-c C-z" . haskell-interactive-switch)))
-
-(use-package lsp-haskell
-  :config
-  (add-hook 'haskell-mode-hook #'lsp)
-  (add-hook 'haskell-literate-mode-hook #'lsp)
-  :delight)
-
 
-;; ─────────────────────────────── Look and feel ───────────────────────────────
+;; ──────────────────────────────────── Look and feel ───────────────────────────────────
 (use-package monokai-alt-theme
   :doc "Just another theme"
   :disabled t
@@ -838,6 +790,8 @@
   ;; The cursor color in this theme is very confusing.
   ;; Change it to green
   (set-cursor-color "#9ce22e")
+  ;; Show (line,column) in mode-line
+  (column-number-mode t)
   ;; Customize theme
   (custom-theme-set-faces
    'user ;; `user' refers to user settings applied via Customize.
@@ -894,38 +848,56 @@
 
   (set-face-attribute 'flycheck-error nil :underline '(:style line :color "#bf616a"))
   (set-face-attribute 'flycheck-warning nil :underline '(:style line :color "#ebcb8b"))
-  (set-face-attribute 'flycheck-info nil :underline '(:style line :color "#b48ead"))
   :delight)
 
 (use-package powerline
   :doc "Better mode line"
-  :disabled t
   :ensure t
   :config
   (powerline-center-theme)
   :delight)
 
-(use-package fira-code-mode
-  :doc "Fira code + ligatures"
-  :ensure t
-  :disabled t
+(use-package "faces"
   :config
-  (setq fira-code-mode-disabled-ligatures '("x" "[]"))
-  (set-face-attribute 'default nil
-                      :family "Fira Code"
-                      :height 150
-                      :weight 'light
-                      :width 'normal)
-  (global-fira-code-mode)
-  :delight)
+  (set-face-attribute 'default nil :height 140)
 
-(use-package hasklig-mode
-  :hook (find-file after-change-major-mode)
-  ;; This ^ is a hack to enable hasklig-mode for all buffers. There is no global
-  ;; hasklig mode. :(
-  :init
-  (when (member "Hasklig" (font-family-list))
-    (set-face-attribute 'default nil :font "Hasklig-15")))
+  ;; Use the 'Fira Code' if available
+  (when (not (eq system-type 'windows-nt))
+    (when (member "Fira Code" (font-family-list))
+
+      ;; Fira code legatures
+      (let ((alist '((33 . ".\\(?:\\(?:==\\|!!\\)\\|[!=]\\)")
+                     (35 . ".\\(?:###\\|##\\|_(\\|[#(?[_{]\\)")
+                     (36 . ".\\(?:>\\)")
+                     (37 . ".\\(?:\\(?:%%\\)\\|%\\)")
+                     (38 . ".\\(?:\\(?:&&\\)\\|&\\)")
+                     ;; (42 . ".\\(?:\\(?:\\*\\*/\\)\\|\\(?:\\*[*/]\\)\\|[*/>]\\)")
+                     (43 . ".\\(?:\\(?:\\+\\+\\)\\|[+>]\\)")
+                     ;; Causes "error in process filter: Attempt to shape unibyte text".
+                     (45 . ".\\(?:\\(?:-[>-]\\|<<\\|>>\\)\\|[<>}~-]\\)")
+                     ;; Fira code page said that this causes an error in Mojave.
+                     ;; (46 . ".\\(?:\\(?:\\.[.<]\\)\\|[.=-]\\)")
+                     (47 . ".\\(?:\\(?:\\*\\*\\|//\\|==\\)\\|[*/=>]\\)")
+                     (48 . ".\\(?:x[a-zA-Z]\\)")
+                     ;; Grouping ';' and ':' in groups of 3 causes occur to break. Disable it.
+                     ;; (58 . ".\\(?:::\\|[:=]\\)")
+                     ;; (59 . ".\\(?:;;\\|;\\)")
+                     (60 . ".\\(?:\\(?:!--\\)\\|\\(?:~~\\|->\\|\\$>\\|\\*>\\|\\+>\\|--\\|<[<=-]\\|=[<=>]\\||>\\)\\|[*$+~/<=>|-]\\)")
+                     ;; (61 . ".\\(?:\\(?:/=\\|:=\\|<<\\|=[=>]\\|>>\\)\\|[<=>~]\\)")
+                     (62 . ".\\(?:\\(?:=>\\|>[=>-]\\)\\|[=>-]\\)")
+                     (63 . ".\\(?:\\(\\?\\?\\)\\|[:=?]\\)")
+                     (91 . ".\\(?:]\\)")
+                     (92 . ".\\(?:\\(?:\\\\\\\\\\)\\|\\\\\\)")
+                     (94 . ".\\(?:=\\)")
+                     (119 . ".\\(?:ww\\)")
+                     (123 . ".\\(?:-\\)")
+                     (124 . ".\\(?:\\(?:|[=|]\\)\\|[=>|]\\)")
+                     (126 . ".\\(?:~>\\|~~\\|[>=@~-]\\)"))))
+        (dolist (char-regexp alist)
+          (set-char-table-range composition-function-table (car char-regexp)
+                                `([,(cdr char-regexp) 0 font-shape-gstring]))))
+
+      (set-frame-font "Fira Code Retina"))))
 
 (use-package emojify
   :doc "Display Emoji in Emacs."
@@ -936,14 +908,8 @@
   :delight)
 
 
-;; ─────────────────────────────────── *ORG* ───────────────────────────────────
+;; ──────────────────────────────────────── *ORG* ───────────────────────────────────────
 (load-file "~/.emacs.d/org-config.el")
-
-;; Open agenda view when Emacs is started.
-;; Do it only if it's Suvrat's computer.
-(when (equal user-login-name "suvratapte")
-  (jump-to-org-agenda)
-  (delete-other-windows))
 
 (provide 'init)
 
